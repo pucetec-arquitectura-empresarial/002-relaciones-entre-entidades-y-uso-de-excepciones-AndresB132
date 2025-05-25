@@ -21,7 +21,7 @@ class SubjectService(
     private val subjectMapper: SubjectMapper
 ) {
 
-    // ✅ Crear asignatura
+    // ✅ Crear una materia asociada a un profesor
     fun createSubject(request: SubjectRequest): SubjectResponse {
         val professor = professorRepository.findById(request.professorId)
             .orElseThrow { ProfessorNotFoundException("Profesor no encontrado") }
@@ -29,20 +29,14 @@ class SubjectService(
         val subject = Subject(
             name = request.name,
             semester = request.semester,
-            professor = professor
+            professor = professor,
+            students = mutableSetOf() // Asegura que no sea null
         )
 
         return subjectMapper.toResponse(subjectRepository.save(subject))
     }
 
-    // ✅ Obtener asignatura por ID
-    fun getSubjectById(subjectId: Long): SubjectResponse {
-        val subject = subjectRepository.findById(subjectId)
-            .orElseThrow { SubjectNotFoundException("Asignatura no encontrada") }
-        return subjectMapper.toResponse(subject)
-    }
-
-    // ✅ Inscribir estudiante
+    // ✅ Inscribir estudiante en materia
     fun enrollStudent(subjectId: Long, studentId: Long): SubjectResponse {
         val subject = subjectRepository.findById(subjectId)
             .orElseThrow { SubjectNotFoundException("Asignatura no encontrada") }
@@ -54,14 +48,16 @@ class SubjectService(
             throw StudentAlreadyEnrolledException("El estudiante ya está inscrito")
         }
 
-        val updatedSubject = subject.copy(students = subject.students.toMutableSet().apply {
-            add(student)
-        })
+        subject.students.add(student)
 
-        return subjectMapper.toResponse(subjectRepository.save(updatedSubject))
+        return subjectMapper.toResponse(subjectRepository.save(subject))
     }
 
-    // ✅ Eliminar asignatura por ID
+    // ✅ Listar todas las materias
+    fun listSubjects(): List<SubjectResponse> =
+        subjectMapper.toResponseList(subjectRepository.findAll())
+
+    // ✅ Eliminar una materia por ID
     fun deleteSubjectById(subjectId: Long): Boolean {
         if (!subjectRepository.existsById(subjectId)) {
             throw SubjectNotFoundException("No se puede eliminar: Asignatura no encontrada")
@@ -70,8 +66,4 @@ class SubjectService(
         subjectRepository.deleteById(subjectId)
         return true
     }
-
-    // ✅ Listar todas las asignaturas
-    fun listSubjects(): List<SubjectResponse> =
-        subjectMapper.toResponseList(subjectRepository.findAll())
 }
